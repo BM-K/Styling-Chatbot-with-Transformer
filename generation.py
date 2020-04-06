@@ -5,7 +5,7 @@ from chatspace import ChatSpace
 spacer = ChatSpace()
 
 def inference(device, args, TEXT, LABEL, model, sa_model):
-    from KoBERT.SBT_main import bert_inference
+    from KoBERT.Sentiment_Analysis_BERT_main import bert_inference
     sentence = input("문장을 입력하세요 : ")
     se_list = [sentence]
 
@@ -23,10 +23,13 @@ def inference(device, args, TEXT, LABEL, model, sa_model):
     enc_input = tokenizer1(sentence)
     enc_input_index = []
 
-    # encoder input string to index tensor and plus <pad>
     for tok in enc_input:
         enc_input_index.append(TEXT.vocab.stoi[tok])
-    enc_input_index.append(sa_token)
+
+    # encoder input string to index tensor and plus <pad>
+    if args.per_soft:
+        enc_input_index.append(sa_token)
+
     for j in range(args.max_len - len(enc_input_index)):
         enc_input_index.append(TEXT.vocab.stoi['<pad>'])
 

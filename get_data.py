@@ -7,11 +7,13 @@ from konlpy.tag import Mecab
 import re
 from Styling import styling, make_special_token
 
+# tokenizer
 def tokenizer1(text):
     result_text = re.sub('[-=+.,#/\:$@*\"※&%ㆍ!?』\\‘|\(\)\[\]\<\>`\'…》;]', '', text)
     a = Mecab().morphs(result_text)
     return ([a[i] for i in range(len(a))])
 
+# 데이터 전처리 및 loader return
 def data_preprocessing(args, device):
 
     # ID는 사용하지 않음. SA는 Sentiment Analysis 라벨(0,1) 임.
@@ -40,14 +42,14 @@ def data_preprocessing(args, device):
                     use_vocab=False)
 
     train_data, test_data = TabularDataset.splits(
-        path='.', train='chatbot_0319_label_train.txt', test='chatbot_0319_label_test.txt', format='tsv',
+        path='.', train='chatbot_0325_ALLLABEL_train.txt', test='chatbot_0325_ALLLABEL_test.txt', format='tsv',
         fields=[('id', ID), ('text', TEXT), ('target_text', LABEL), ('SA', SA)], skip_header=True
     )
 
     vectors = Vectors(name="kr-projected.txt")
 
     # TEXT, LABEL 에 필요한 special token 만듦.
-    text_specials, label_specials = make_special_token()
+    text_specials, label_specials = make_special_token(args)
 
     TEXT.build_vocab(train_data, vectors=vectors, max_size=15000, specials=text_specials)
     LABEL.build_vocab(train_data, vectors=vectors, max_size=15000, specials=label_specials)

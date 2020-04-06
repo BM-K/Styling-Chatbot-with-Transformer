@@ -8,8 +8,8 @@ from get_data import data_preprocessing, tokenizer1
 from generation import inference
 
 SEED = 1234
-torch.manual_seed(SEED)
 
+# argparse 정의
 parser = argparse.ArgumentParser()
 parser.add_argument('--max_len', type=int, default=40) # max_len 크게 해야 오류 안 생김.
 parser.add_argument('--batch_size', type=int, default=256)
@@ -20,17 +20,19 @@ parser.add_argument('--embedding_dim', type=int, default=160)
 parser.add_argument('--nlayers', type=int, default=2)
 parser.add_argument('--nhead', type=int, default=2)
 parser.add_argument('--dropout', type=float, default=0.1)
-parser.add_argument('--train', type=bool, default=True)
-parser.add_argument('--per_soft', type=bool, default=False)
-parser.add_argument('--per_rough', type=bool, default=True)
+parser.add_argument('--train', type=bool, default=False)
+parser.add_argument('--per_soft', type=bool, default=True)
+parser.add_argument('--per_rough', type=bool, default=False)
 args = parser.parse_args()
 
+# 시간 계산 함수
 def epoch_time(start_time, end_time):
     elapsed_time = end_time - start_time
     elapsed_mins = int(elapsed_time / 60)
     elapsed_secs = int(elapsed_time - (elapsed_mins * 60))
     return elapsed_mins, elapsed_secs
 
+# 학습
 def train(model, iterator, optimizer, criterion):
     total_loss = 0
     iter_num = 0
@@ -73,6 +75,7 @@ def train(model, iterator, optimizer, criterion):
 
     return total_loss.data.cpu().numpy() / iter_num, tr_acc.data.cpu().numpy() / iter_num
 
+# 테스트
 def test(model, iterator, criterion):
     total_loss = 0
     iter_num = 0
@@ -129,9 +132,9 @@ def main(TEXT, LABEL, train_loader, test_loader):
     # Transformer model init
     model = Transformer(args, TEXT, LABEL)
     if args.per_soft:
-        sorted_path = 'sorted_model-soft.pt'
+        sorted_path = 'sorted_model-soft.pth'
     else:
-        sorted_path = 'sorted_model-rough.pt'
+        sorted_path = 'sorted_model-rough.pth'
 
     # loss 계산시 pad 제외.
     criterion = nn.CrossEntropyLoss(ignore_index=LABEL.vocab.stoi['<pad>'])
@@ -151,6 +154,7 @@ def main(TEXT, LABEL, train_loader, test_loader):
     # train
     if args.train:
         for epoch in range(args.num_epochs):
+            torch.manual_seed(SEED)
             scheduler.step(epoch)
             start_time = time.time()
 
@@ -166,7 +170,12 @@ def main(TEXT, LABEL, train_loader, test_loader):
             #전에 학습된 loss 보다 현재 loss 가 더 낮을시 모델 저장.
             if valid_loss < best_valid_loss:
                 best_valid_loss = valid_loss
-                torch.save(model.state_dict(), sorted_path)
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'loss': valid_loss},
+                    sorted_path)
                 print(f'\t## SAVE valid_loss: {valid_loss:.3f} | valid_acc: {valid_acc:.3f} ##')
 
             # print loss and acc
@@ -176,7 +185,8 @@ def main(TEXT, LABEL, train_loader, test_loader):
 
     # inference
     print("\t----------성능평가----------")
-    model.load_state_dict(torch.load(sorted_path))
+    checkpoint = torch.load(sorted_path)
+    model.load_state_dict(checkpoint['model_state_dict'])
     test_loss, test_acc = test(model, test_loader, criterion) # 아
     print(f'==test_loss : {test_loss:.3f} | test_acc: {test_acc:.3f}==')
     print("\t-----------------------------")
