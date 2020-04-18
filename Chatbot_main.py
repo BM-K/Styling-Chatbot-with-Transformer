@@ -20,8 +20,8 @@ parser.add_argument('--embedding_dim', type=int, default=160)
 parser.add_argument('--nlayers', type=int, default=2)
 parser.add_argument('--nhead', type=int, default=2)
 parser.add_argument('--dropout', type=float, default=0.1)
-parser.add_argument('--train', type=bool, default=False)
-parser.add_argument('--per_soft', type=bool, default=True)
+parser.add_argument('--train', type=bool, default=True)
+parser.add_argument('--per_soft', type=bool, default=False)
 parser.add_argument('--per_rough', type=bool, default=False)
 args = parser.parse_args()
 
@@ -55,10 +55,10 @@ def train(model, iterator, optimizer, criterion):
         y_pred = y_pred.reshape(-1, y_pred.size(-1))
         dec_output = dec_outputs.view(-1).long()
 
-        # paddint 제외한 value index 추출
+        # padding 제외한 value index 추출
         real_value_index = [dec_output != 1] # <pad> == 1
 
-        # padding은 loss 계산시 제외
+        # padding 은 loss 계산시 제외
         loss = criterion(y_pred[real_value_index], dec_output[real_value_index])
         loss.backward()
         optimizer.step()

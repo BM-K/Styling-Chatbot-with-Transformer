@@ -56,5 +56,5 @@ def data_preprocessing(args, device):
 
     train_loader = BucketIterator(dataset=train_data, batch_size=args.batch_size, device=device, shuffle=True)
     test_loader = BucketIterator(dataset=test_data, batch_size=args.batch_size, device=device, shuffle=True)
-
+    # BucketIterator(dataset=traing_data check)
     return TEXT, LABEL, train_loader, test_loader

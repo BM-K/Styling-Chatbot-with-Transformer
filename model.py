@@ -15,6 +15,7 @@ class Transformer(nn.Module):
 
         self.SRC_vo = SRC_vocab
         self.TRG_vo = TRG_vocab
+
         self.pos_encoder = PositionalEncoding(self.d_model, self.dropout)
 
         self.src_embedding = nn.Embedding(len(self.SRC_vo.vocab), self.d_model)
@@ -64,7 +65,7 @@ class Transformer(nn.Module):
 
 class PositionalEncoding(nn.Module):
 
-    def __init__(self, d_model, dropout, max_len=5000):
+    def __init__(self, d_model, dropout, max_len=15000):
         super(PositionalEncoding, self).__init__()
         self.dropout = nn.Dropout(p=dropout)
 

@@ -36,7 +36,7 @@ def inference(device, args, TEXT, LABEL, model, sa_model):
     enc_input_index = Variable(torch.LongTensor([enc_input_index]))
 
     dec_input = torch.LongTensor([[LABEL.vocab.stoi['<sos>']]])
-    print("긍정" if sa_label == 1 else "부정")
+    #print("긍정" if sa_label == 1 else "부정")
 
     model.eval()
     pred = []
