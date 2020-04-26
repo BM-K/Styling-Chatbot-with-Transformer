@@ -1,13 +1,14 @@
-import torch
-from torchtext import data
-from torchtext.data import TabularDataset
-from torchtext.data import BucketIterator
-from torchtext.vocab import Vectors
-from konlpy.tag import Mecab
-import re
-from Styling import styling, make_special_token
 import argparse
+import re
+
+import torch
+from konlpy.tag import Mecab
 from torch import nn
+from torchtext import data
+from torchtext.data import BucketIterator
+from torchtext.data import TabularDataset
+
+from Styling import styling, make_special_token
 from generation import inference
 
 SEED = 1234
@@ -31,8 +32,8 @@ args = parser.parse_args()
 def acc(yhat, y):
     with torch.no_grad():
         yhat = yhat.max(dim=-1)[1] # [0]: max value, [1]: index of max value
-        acc = (yhat == y).float()[y != 1].mean() # padding은 acc에서 제거
-    return acc
+        _acc = (yhat == y).float()[y != 1].mean() # padding은 acc에서 제거
+    return _acc
 
 def test(model, iterator, criterion):
     total_loss = 0
@@ -69,7 +70,7 @@ def test(model, iterator, criterion):
 
 # tokenizer
 def tokenizer1(text):
-    result_text = re.sub('[-=+.,#/\:$@*\"※&%ㆍ!?』\\‘|\(\)\[\]\<\>`\'…》;]', '', text)
+    result_text = re.sub(r'[-=+.,#/\:$@*\"※&%ㆍ!?』\\‘|\(\)\[\]\<\>`\'…》;]', '', text)
     a = Mecab().morphs(result_text)
     return ([a[i] for i in range(len(a))])
 
@@ -130,7 +131,7 @@ def main(TEXT, LABEL):
         else:
             print("\t", key, ":", value)
 
-    from model import Transformer, GradualWarmupScheduler
+    from model import Transformer
 
     model = Transformer(args, TEXT, LABEL)
     if args.per_soft:

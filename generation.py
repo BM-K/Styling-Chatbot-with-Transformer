@@ -13,9 +13,8 @@ def inference(device, max_len: int, per_soft: bool,  TEXT, LABEL, model, sa_mode
 
     # https://github.com/SKTBrain/KoBERT
     # SKT 에서 공개한 KoBert Sentiment Analysis 를 통해 입력문장의 긍정 부정 판단.
-    sa_label = int(bert_inference(sa_model, se_list))
+    sa_label = int(bert_inference(sa_model, se_list, max_len))
 
-    sa_token = ''
     # SA Label 에 따른 encoder input 변화.
     if sa_label == 0:
         sa_token = TEXT.vocab.stoi['<nega>']

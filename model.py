@@ -23,7 +23,7 @@ class Transformer(nn.Module):
         self.src_embedding = nn.Embedding(len(self.SRC_vo.vocab), self.d_model)
         self.trg_embedding = nn.Embedding(len(self.TRG_vo.vocab), self.d_model)
 
-        self.transfomrer = torch.nn.Transformer(d_model=self.d_model,
+        self.transformer = torch.nn.Transformer(d_model=self.d_model,
                                                 nhead=self.n_head,
                                                 num_encoder_layers=self.num_encoder_layers,
                                                 num_decoder_layers=self.num_decoder_layers,
@@ -44,12 +44,12 @@ class Transformer(nn.Module):
         src_key_padding_mask = en_input == self.SRC_vo.vocab.stoi['<pad>']
         tgt_key_padding_mask = de_input == self.TRG_vo.vocab.stoi['<pad>']
         memory_key_padding_mask = src_key_padding_mask
-        tgt_mask = self.transfomrer.generate_square_subsequent_mask(de_input.size(1))
+        tgt_mask = self.transformer.generate_square_subsequent_mask(de_input.size(1))
 
         x_en_embed = torch.einsum('ijk->jik', x_en_embed)
         x_de_embed = torch.einsum('ijk->jik', x_de_embed)
 
-        feature = self.transfomrer(src=x_en_embed,
+        feature = self.transformer(src=x_en_embed,
                                    tgt=x_de_embed,
                                    src_key_padding_mask=src_key_padding_mask,
                                    tgt_key_padding_mask=tgt_key_padding_mask,

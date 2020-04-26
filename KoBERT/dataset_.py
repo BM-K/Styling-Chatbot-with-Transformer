@@ -57,12 +57,3 @@ def get_loader(max_len: int, batch_size: int):
 def infer(max_len: int, src):
     SRC_data = inferBERTDataset(src, 0, tok, max_len, True, False)
     return SRC_data
-
-# num=0
-# print(len(data_test))
-# f = open('chat_Q_label.txt', 'r', encoding='utf-8')
-# rdr = csv.reader(f, delimiter='\t')
-# for idx, lin in enumerate(rdr):
-#     num+=1
-# print(num)
-# exit()

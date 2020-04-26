@@ -16,7 +16,7 @@ def mecab_token_pos_flat_fn(string):
     return [str(pos[0]) + '/' + str(pos[1]) for pos in tokens_ko]
 
 # rough 를 위한 함수. 대명사 NP (저, 제) 를 찾아 나 or 내 로 바꿔준다.
-def exchange_NP(target, args):
+def exchange_NP(target):
     keyword = []
     ko_sp = mecab_token_pos_flat_fn(target)
     for idx, word in enumerate(ko_sp):
@@ -118,7 +118,6 @@ def make_special_token(args):
 
 # python string 함수 replace 를 오른쪽부터 시작하는 함수.
 def replaceRight(original, old, new, count_right):
-    repeat = 0
     text = original
 
     count_find = original.count(old)
@@ -250,7 +249,7 @@ def styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, args, TEXT
                 temp_sentence = temp_sentence + LABEL.vocab.itos[token_i]
             temp_sentence = temp_sentence+'.' # 마침표에 유무에 따라 형태소 분석이 달라짐.
             exchange_word, idx = make_special_word(temp_sentence, args, True)
-            exchange_NP_word, NP_idx, exist = exchange_NP(temp_sentence, args)
+            exchange_NP_word, NP_idx, exist = exchange_NP(temp_sentence)
 
             if exist:
                 temp_dec[i][NP_idx] = LABEL.vocab.stoi[exchange_NP_word]
@@ -289,7 +288,7 @@ def styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, args, TEXT
                 temp_sentence = temp_sentence + LABEL.vocab.itos[token_i]
             temp_sentence = temp_sentence + '.'  # 마침표에 유무에 따라 형태소 분석이 달라짐.
             exchange_word, idx = make_special_word(temp_sentence, args, True)
-            exchange_NP_word, NP_idx, exist = exchange_NP(temp_sentence, args)
+            exchange_NP_word, NP_idx, exist = exchange_NP(temp_sentence)
             idx = idx + 1  # because of token <sos>
             NP_idx = NP_idx + 1
 

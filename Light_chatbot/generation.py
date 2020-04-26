@@ -7,13 +7,12 @@ import re
 spacer = ChatSpace()
 
 def tokenizer1(text):
-    result_text = re.sub('[-=+.,#/\:$@*\"※&%ㆍ!?』\\‘|\(\)\[\]\<\>`\'…》;]', '', text)
+    result_text = re.sub(r'[-=+.,#/\:$@*\"※&%ㆍ!?』\\‘|\(\)\[\]\<\>`\'…》;]', '', text)
     a = Mecab().morphs(result_text)
     return ([a[i] for i in range(len(a))])
 
 def inference(device, args, TEXT, LABEL, model):
     sentence = input("문장을 입력하세요 : ")
-    se_list = [sentence]
 
     enc_input = tokenizer1(sentence)
     enc_input_index = []

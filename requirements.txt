@@ -5,3 +5,10 @@ konlpy >= 0.5.2
 pytorch-pretrained-bert >= 0.6.2
 torchtext >= 0.6.0
 
+
+requests>=2.18.4
+torch>=1.4.0
+transformers>=2.8.0
+setuptools>=42.0.2
+numpy>=1.18.0
+tqdm>=4.45.0

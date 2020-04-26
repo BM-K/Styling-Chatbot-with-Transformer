@@ -29,5 +29,5 @@ class BERTClassifier(nn.Module):
                               attention_mask=attention_mask.float().to(token_ids.device))
 
         if self.dr_rate:
-            out = self.dropout(pooler)
+            out = self.dropout(pooler)  # TODO: Resolve this
         return self.classifier(out)

@@ -8,10 +8,11 @@ from transformers import AdamW
 import time
 import random
 import numpy as np
+import KoBERT.dataset_ as dataset
 from kobert.pytorch_kobert import get_pytorch_kobert_model
 
-bertmodel, vocab = get_pytorch_kobert_model()
-import KoBERT.dataset_ as dataset
+bert_model, vocab = get_pytorch_kobert_model()
+
 
 # print(vocab.to_tokens(517))
 # print(vocab.to_tokens(5515))
@@ -38,7 +39,7 @@ torch.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
 
 
-def train(model, iter_loader, optimizer, loss_fn):
+def train(model, iter_loader, optimizer, loss_fn, max_grad_norm: int, do_test: bool):
     train_acc = 0.0
     model.train()
     for batch_id, (token_ids, valid_length, segment_ids, label) in enumerate(tqdm(iter_loader)):
@@ -50,14 +51,14 @@ def train(model, iter_loader, optimizer, loss_fn):
         out = model(token_ids, valid_length, segment_ids)
         loss = loss_fn(out, label)
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
         optimizer.step()
         # scheduler.step()  # Update learning rate schedule
-        train_acc += calc_accuracy(out, label)
+        train_acc += calc_accuracy(out, label, do_test)
     return loss.data.cpu().numpy(), train_acc / (batch_id + 1)
 
 
-def test(model, iter_loader, loss_fn):
+def test(model, iter_loader, loss_fn, do_test: bool):
     model.eval()
     test_acc = 0.0
     with torch.no_grad():
@@ -69,14 +70,14 @@ def test(model, iter_loader, loss_fn):
 
             out = model(token_ids, valid_length, segment_ids)
             loss = loss_fn(out, label)
-            test_acc += calc_accuracy(out, label)
+            test_acc += calc_accuracy(out, label, do_test)
     return loss.data.cpu().numpy(), test_acc / (batch_id + 1)
 
 
-def bert_inference(model, src):
+def bert_inference(model, src, max_len: int):
     model.eval()
     with torch.no_grad():
-        src_data = dataset.infer(args, src)
+        src_data = dataset.infer(max_len, src)
         for batch_id, (token_ids, valid_length, segment_ids) in enumerate(src_data):
             token_ids = torch.tensor([token_ids]).long().to(device)
             segment_ids = torch.tensor([segment_ids]).long().to(device)
@@ -95,15 +96,15 @@ def bert_inference(model, src):
     return -1
 
 
-def calc_accuracy(X, Y):
-    max_vals, max_indices = torch.max(X, 1)
-    if args.do_test:
+def calc_accuracy(x, y, do_test: bool):
+    max_vals, max_indices = torch.max(x, 1)
+    if do_test:
         max_list = max_indices.data.cpu().numpy().tolist()
         f = open('chat_Q_label_0325.txt', 'a', encoding='utf-8')
         wr = csv.writer(f, delimiter='\t')
         for i in range(len(max_list)):
             wr.writerow(str(max_list[i]))
-    train_acc = (max_indices == Y).sum().data.cpu().numpy() / max_indices.size()[0]
+    train_acc = (max_indices == y).sum().data.cpu().numpy() / max_indices.size()[0]
     return train_acc
 
 
@@ -114,25 +115,10 @@ def epoch_time(start_time, end_time):
     return elapsed_mins, elapsed_secs
 
 
-# Argparse init
-parser = argparse.ArgumentParser()
-parser.add_argument('--max_len', type=int, default=64)
-parser.add_argument('--batch_size', type=int, default=64)
-parser.add_argument('--warmup_ratio', type=int, default=0.1)
-parser.add_argument('--num_epochs', type=int, default=5)
-parser.add_argument('--max_grad_norm', type=int, default=1)
-parser.add_argument('--learning_rate', type=float, default=5e-5)
-parser.add_argument('--num_workers', type=int, default=1)
-parser.add_argument('--do_train', type=bool, default=False)
-parser.add_argument('--do_test', type=bool, default=False)
-parser.add_argument('--train', type=bool, default=True)
-args = parser.parse_args()
-
-
-def main():
-    from Bert_model import BERTClassifier
-    model = BERTClassifier(bertmodel, dr_rate=0.5).to(device)
-    train_dataloader, test_dataloader = dataset.get_loader(args)
+def main(args):
+    from KoBERT.Bert_model import BERTClassifier
+    model = BERTClassifier(bert_model, dr_rate=0.5).to(device)
+    train_dataloader, test_dataloader = dataset.get_loader(args.max_len, args.batch_size)
     # Prepare optimizer and schedule (linear warmup and decay)
     no_decay = ['bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [
@@ -150,22 +136,14 @@ def main():
     # scheduler = WarmupLinearSchedule(optimizer, warmup_steps=warmup_step, t_total=t_total)
     best_valid_loss = float('inf')
 
-    # for idx, (key, value) in enumerate(args.__dict__.items()):
-    #     if idx == 0:
-    #         print("\nargparse{\n", "\t", key, ":", value)
-    #     elif idx == len(args.__dict__) - 1:
-    #         print("\t", key, ":", value, "\n}")
-    #     else:
-    #         print("\t", key, ":", value)
-
     if args.do_train:
 
         for epoch in range(args.num_epochs):
             start_time = time.time()
 
             print("\n\t-----Train-----")
-            train_loss, train_acc = train(model, train_dataloader, optimizer, loss_fn)
-            valid_loss, valid_acc = test(model, test_dataloader, loss_fn)
+            train_loss, train_acc = train(model, train_dataloader, optimizer, loss_fn, args.max_grad_norm, args.do_test)
+            valid_loss, valid_acc = test(model, test_dataloader, loss_fn, args.do_test)
 
             end_time = time.time()
 
@@ -182,7 +160,7 @@ def main():
     model.load_state_dict(torch.load('bert_SA-model.pt'))
 
     if args.do_test:
-        test_loss, test_acc = test(model, test_dataloader, loss_fn)
+        test_loss, test_acc = test(model, test_dataloader, loss_fn, args.do_test)
         print(f'Test Loss: {test_loss:.3f} | Test Acc: {test_acc * 100:.2f}%')
 
     # while(1):
@@ -192,4 +170,17 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # Argparse init
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--max_len', type=int, default=64)
+    parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--warmup_ratio', type=int, default=0.1)
+    parser.add_argument('--num_epochs', type=int, default=5)
+    parser.add_argument('--max_grad_norm', type=int, default=1)
+    parser.add_argument('--learning_rate', type=float, default=5e-5)
+    parser.add_argument('--num_workers', type=int, default=1)
+    parser.add_argument('--do_train', type=bool, default=False)
+    parser.add_argument('--do_test', type=bool, default=False)
+    parser.add_argument('--train', type=bool, default=True)
+    arguments = parser.parse_args()
+    main(arguments)

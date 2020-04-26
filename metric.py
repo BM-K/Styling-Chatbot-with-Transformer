@@ -2,7 +2,7 @@ import torch
 
 
 # acc 출력
-def acc(yhat, y):
+def acc(yhat: torch.Tensor, y: torch.Tensor):
     with torch.no_grad():
         yhat = yhat.max(dim=-1)[1]  # [0]: max value, [1]: index of max value
         _acc = (yhat == y).float()[y != 1].mean()  # padding은 acc에서 제거

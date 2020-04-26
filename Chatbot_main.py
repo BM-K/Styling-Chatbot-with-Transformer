@@ -63,7 +63,7 @@ def train(model, iterator, optimizer, criterion, max_len: int, per_soft: bool, p
 
 
 # 테스트
-def test(model, iterator, criterion, max_len: int, per_soft: bool, per_rough: bool):
+def test(model, iterator, criterion: nn.CrossEntropyLoss, max_len: int, per_soft: bool, per_rough: bool):
     total_loss = 0
     iter_num = 0
     te_acc = 0
