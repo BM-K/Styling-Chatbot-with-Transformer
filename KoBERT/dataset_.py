@@ -3,7 +3,8 @@ from torch.utils.data import Dataset
 import gluonnlp as nlp
 import numpy as np
 from kobert.utils import get_tokenizer
-from KoBERT.SBT_main import bertmodel, vocab
+from kobert.pytorch_kobert import get_pytorch_kobert_model
+bertmodel, vocab = get_pytorch_kobert_model()
 
 tokenizer = get_tokenizer()
 tok = nlp.data.BERTSPTokenizer(tokenizer, vocab, lower=False)

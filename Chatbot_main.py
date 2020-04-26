@@ -20,9 +20,10 @@ parser.add_argument('--embedding_dim', type=int, default=160)
 parser.add_argument('--nlayers', type=int, default=2)
 parser.add_argument('--nhead', type=int, default=2)
 parser.add_argument('--dropout', type=float, default=0.1)
-parser.add_argument('--train', type=bool, default=True)
-parser.add_argument('--per_soft', type=bool, default=False)
-parser.add_argument('--per_rough', type=bool, default=False)
+parser.add_argument('--train', action="store_true")
+group = parser.add_mutually_exclusive_group()
+group.add_argument('--per_soft', action="store_true")
+group.add_argument('--per_rough', action="store_true")
 args = parser.parse_args()
 
 # 시간 계산 함수

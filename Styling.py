@@ -135,8 +135,9 @@ def replaceRight(original, old, new, count_right):
 
 # transformer 에 input 과 output 으로 들어갈 tensor Styling 변환.
 def styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, args, TEXT, LABEL):
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-    pad_tensor = torch.tensor([LABEL.vocab.stoi['<pad>']]).type(dtype=torch.int32).cuda()
+    pad_tensor = torch.tensor([LABEL.vocab.stoi['<pad>']]).type(dtype=torch.int32).to(device)
 
     temp_enc = enc_input.data.cpu().numpy()
     batch_sentiment_list = []
@@ -155,7 +156,7 @@ def styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, args, TEXT
                     batch_sentiment_list.append(1)
                     break
 
-        enc_input = torch.tensor(temp_enc, dtype=torch.int32).cuda()
+        enc_input = torch.tensor(temp_enc, dtype=torch.int32).to(device)
 
         for i in range(len(dec_outputs)):
             dec_outputs[i] = torch.cat([dec_output[i], pad_tensor], dim=-1)
@@ -199,7 +200,7 @@ def styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, args, TEXT
                     print("\t-ERROR- No <EOS> token")
                     exit()
 
-        dec_outputs = torch.tensor(temp_dec, dtype=torch.int32).cuda()
+        dec_outputs = torch.tensor(temp_dec, dtype=torch.int32).to(device)
 
         temp_dec_input = dec_input.data.cpu().numpy()
         # decoder input : <sos> 저도 좋아용 ㅎㅎ <eos> <pad> <pad> ... - 형식으로 바꿔줌.
@@ -230,7 +231,7 @@ def styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, args, TEXT
                     print("\t-ERROR- No <EOS> token")
                     exit()
 
-        dec_input = torch.tensor(temp_dec_input, dtype=torch.int32).cuda()
+        dec_input = torch.tensor(temp_dec_input, dtype=torch.int32).to(device)
 
     # 거친 성격
     elif args.per_rough:
@@ -275,7 +276,7 @@ def styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, args, TEXT
             #     print(LABEL.vocab.itos[temp_dec[i][j]], end='')
             # print()
 
-        dec_outputs = torch.tensor(temp_dec, dtype=torch.int32).cuda()
+        dec_outputs = torch.tensor(temp_dec, dtype=torch.int32).to(device)
 
         temp_dec_input = dec_input.data.cpu().numpy()
         # decoder input : <sos> 나도 좋아 <eos> <pad> <pad> ... - 형식으로 바꿔줌.
@@ -317,7 +318,7 @@ def styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, args, TEXT
             #     print(LABEL.vocab.itos[temp_dec_input[i][j]], end='')
             # print()
 
-        dec_input = torch.tensor(temp_dec_input, dtype=torch.int32).cuda()
+        dec_input = torch.tensor(temp_dec_input, dtype=torch.int32).to(device)
 
     return enc_input, dec_input, dec_outputs
 
