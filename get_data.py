@@ -5,17 +5,18 @@ from torchtext.data import BucketIterator
 from torchtext.vocab import Vectors
 from konlpy.tag import Mecab
 import re
-from Styling import styling, make_special_token
+from Styling import make_special_token
+
 
 # tokenizer
 def tokenizer1(text):
-    result_text = re.sub('[-=+.,#/\:$@*\"※&%ㆍ!?』\\‘|\(\)\[\]\<\>`\'…》;]', '', text)
+    result_text = re.sub(r'[-=+.,#/:$@*\"※&%ㆍ!?』‘|(\)\[\]<>`\'…》;]', '', text)
     a = Mecab().morphs(result_text)
-    return ([a[i] for i in range(len(a))])
+    return [a[i] for i in range(len(a))]
+
 
 # 데이터 전처리 및 loader return
-def data_preprocessing(args, device):
-
+def data_preprocessing(batch_size: int, max_len: int, per_rough: bool,  device):
     # ID는 사용하지 않음. SA는 Sentiment Analysis 라벨(0,1) 임.
     ID = data.Field(sequential=False,
                     use_vocab=False)
@@ -24,7 +25,7 @@ def data_preprocessing(args, device):
                       use_vocab=True,
                       tokenize=tokenizer1,
                       batch_first=True,
-                      fix_length=args.max_len,
+                      fix_length=max_len,
                       dtype=torch.int32
                       )
 
@@ -32,7 +33,7 @@ def data_preprocessing(args, device):
                        use_vocab=True,
                        tokenize=tokenizer1,
                        batch_first=True,
-                       fix_length=args.max_len,
+                       fix_length=max_len,
                        init_token='<sos>',
                        eos_token='<eos>',
                        dtype=torch.int32
@@ -49,12 +50,12 @@ def data_preprocessing(args, device):
     vectors = Vectors(name="kr-projected.txt")
 
     # TEXT, LABEL 에 필요한 special token 만듦.
-    text_specials, label_specials = make_special_token(args)
+    text_specials, label_specials = make_special_token(per_rough)
 
     TEXT.build_vocab(train_data, vectors=vectors, max_size=15000, specials=text_specials)
     LABEL.build_vocab(train_data, vectors=vectors, max_size=15000, specials=label_specials)
 
-    train_loader = BucketIterator(dataset=train_data, batch_size=args.batch_size, device=device, shuffle=True)
-    test_loader = BucketIterator(dataset=test_data, batch_size=args.batch_size, device=device, shuffle=True)
+    train_loader = BucketIterator(dataset=train_data, batch_size=batch_size, device=device, shuffle=True)
+    test_loader = BucketIterator(dataset=test_data, batch_size=batch_size, device=device, shuffle=True)
     # BucketIterator(dataset=traing_data check)
     return TEXT, LABEL, train_loader, test_loader

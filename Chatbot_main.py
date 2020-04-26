@@ -3,28 +3,12 @@ import torch
 import argparse
 from torch import nn
 from metric import acc, train_test
-from Styling import styling, make_special_token
-from get_data import data_preprocessing, tokenizer1
+from Styling import styling
+from get_data import data_preprocessing
 from generation import inference
 
 SEED = 1234
 
-# argparse 정의
-parser = argparse.ArgumentParser()
-parser.add_argument('--max_len', type=int, default=40) # max_len 크게 해야 오류 안 생김.
-parser.add_argument('--batch_size', type=int, default=256)
-parser.add_argument('--num_epochs', type=int, default=22)
-parser.add_argument('--warming_up_epochs', type=int, default=5)
-parser.add_argument('--lr', type=float, default=0.0002)
-parser.add_argument('--embedding_dim', type=int, default=160)
-parser.add_argument('--nlayers', type=int, default=2)
-parser.add_argument('--nhead', type=int, default=2)
-parser.add_argument('--dropout', type=float, default=0.1)
-parser.add_argument('--train', action="store_true")
-group = parser.add_mutually_exclusive_group()
-group.add_argument('--per_soft', action="store_true")
-group.add_argument('--per_rough', action="store_true")
-args = parser.parse_args()
 
 # 시간 계산 함수
 def epoch_time(start_time, end_time):
@@ -33,8 +17,9 @@ def epoch_time(start_time, end_time):
     elapsed_secs = int(elapsed_time - (elapsed_mins * 60))
     return elapsed_mins, elapsed_secs
 
+
 # 학습
-def train(model, iterator, optimizer, criterion):
+def train(model, iterator, optimizer, criterion, max_len: int, per_soft: bool, per_rough: bool):
     total_loss = 0
     iter_num = 0
     tr_acc = 0
@@ -43,13 +28,13 @@ def train(model, iterator, optimizer, criterion):
     for step, batch in enumerate(iterator):
         optimizer.zero_grad()
 
-        enc_input, dec_input , enc_label = batch.text, batch.target_text, batch.SA
+        enc_input, dec_input, enc_label = batch.text, batch.target_text, batch.SA
         dec_output = dec_input[:, 1:]
-        dec_outputs = torch.zeros(dec_output.size(0), args.max_len).type_as(dec_input.data)
+        dec_outputs = torch.zeros(dec_output.size(0), max_len).type_as(dec_input.data)
 
         # emotion 과 체를 반영
         enc_input, dec_input, dec_outputs = \
-            styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, args, TEXT, LABEL)
+            styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, max_len, per_soft, per_rough, TEXT, LABEL)
 
         y_pred = model(enc_input, dec_input)
 
@@ -57,7 +42,7 @@ def train(model, iterator, optimizer, criterion):
         dec_output = dec_outputs.view(-1).long()
 
         # padding 제외한 value index 추출
-        real_value_index = [dec_output != 1] # <pad> == 1
+        real_value_index = [dec_output != 1]  # <pad> == 1
 
         # padding 은 loss 계산시 제외
         loss = criterion(y_pred[real_value_index], dec_output[real_value_index])
@@ -72,12 +57,13 @@ def train(model, iterator, optimizer, criterion):
         tr_acc += train_acc
 
         train_test(step, y_pred, dec_output, real_value_index, enc_input,
-                   args, TEXT, LABEL)
+                   max_len, TEXT, LABEL)
 
     return total_loss.data.cpu().numpy() / iter_num, tr_acc.data.cpu().numpy() / iter_num
 
+
 # 테스트
-def test(model, iterator, criterion):
+def test(model, iterator, criterion, max_len: int, per_soft: bool, per_rough: bool):
     total_loss = 0
     iter_num = 0
     te_acc = 0
@@ -87,11 +73,12 @@ def test(model, iterator, criterion):
         for batch in iterator:
             enc_input, dec_input, enc_label = batch.text, batch.target_text, batch.SA
             dec_output = dec_input[:, 1:]
-            dec_outputs = torch.zeros(dec_output.size(0), args.max_len).type_as(dec_input.data)
+            dec_outputs = torch.zeros(dec_output.size(0), max_len).type_as(dec_input.data)
 
             # emotion 과 체를 반영
             enc_input, dec_input, dec_outputs = \
-                styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, args, TEXT, LABEL)
+                styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, max_len, per_soft, per_rough, TEXT,
+                        LABEL)
 
             y_pred = model(enc_input, dec_input)
 
@@ -110,20 +97,20 @@ def test(model, iterator, criterion):
 
     return total_loss.data.cpu().numpy() / iter_num, te_acc.data.cpu().numpy() / iter_num
 
-def main(TEXT, LABEL, train_loader, test_loader):
 
+def main(TEXT, LABEL, train_loader, test_loader, arguments):
     # for sentiment analysis. load .pt file
     from KoBERT.Bert_model import BERTClassifier
     from kobert.pytorch_kobert import get_pytorch_kobert_model
-    bertmodel, vocab = get_pytorch_kobert_model()
-    sa_model = BERTClassifier(bertmodel, dr_rate=0.5).to(device)
+    bert_model, vocab = get_pytorch_kobert_model()
+    sa_model = BERTClassifier(bert_model, dr_rate=0.5).to(device)
     sa_model.load_state_dict(torch.load('bert_SA-model.pt'))
 
     # print argparse
-    for idx, (key, value) in enumerate(args.__dict__.items()):
+    for idx, (key, value) in enumerate(arguments.__dict__.items()):
         if idx == 0:
             print("\nargparse{\n", "\t", key, ":", value)
-        elif idx == len(args.__dict__)-1:
+        elif idx == len(arguments.__dict__) - 1:
             print("\t", key, ":", value, "\n}")
         else:
             print("\t", key, ":", value)
@@ -131,8 +118,8 @@ def main(TEXT, LABEL, train_loader, test_loader):
     from model import Transformer, GradualWarmupScheduler
 
     # Transformer model init
-    model = Transformer(args, TEXT, LABEL)
-    if args.per_soft:
+    model = Transformer(arguments.embedding_dim, arguments.nhead, arguments.nlayers, arguments.dropout, TEXT, LABEL)
+    if arguments.per_soft:
         sorted_path = 'sorted_model-soft.pth'
     else:
         sorted_path = 'sorted_model-rough.pth'
@@ -140,8 +127,8 @@ def main(TEXT, LABEL, train_loader, test_loader):
     # loss 계산시 pad 제외.
     criterion = nn.CrossEntropyLoss(ignore_index=LABEL.vocab.stoi['<pad>'])
 
-    optimizer = torch.optim.Adam(params=model.parameters(), lr=args.lr)
-    scheduler = GradualWarmupScheduler(optimizer, multiplier=8, total_epoch=args.num_epochs)
+    optimizer = torch.optim.Adam(params=model.parameters(), lr=arguments.lr)
+    scheduler = GradualWarmupScheduler(optimizer, multiplier=8, total_epoch=arguments.num_epochs)
 
     # pre-trained 된 vectors load
     model.src_embedding.weight.data.copy_(TEXT.vocab.vectors)
@@ -153,22 +140,25 @@ def main(TEXT, LABEL, train_loader, test_loader):
     best_valid_loss = float('inf')
 
     # train
-    if args.train:
-        for epoch in range(args.num_epochs):
+    if arguments.train:
+        for epoch in range(arguments.num_epochs):
             torch.manual_seed(SEED)
             scheduler.step(epoch)
             start_time = time.time()
 
             # train, validation
-            train_loss, train_acc = train(model, train_loader, optimizer, criterion)
-            valid_loss, valid_acc = test(model, test_loader, criterion)
+            train_loss, train_acc = \
+                train(model, train_loader, optimizer, criterion, arguments.max_len, arguments.per_soft,
+                      arguments.per_rough)
+            valid_loss, valid_acc = test(model, test_loader, criterion, arguments.max_len, arguments.per_soft,
+                                         arguments.per_rough)
 
             # time cal
             end_time = time.time()
             epoch_mins, epoch_secs = epoch_time(start_time, end_time)
 
-            #torch.save(model.state_dict(), sorted_path) # for some overfitting
-            #전에 학습된 loss 보다 현재 loss 가 더 낮을시 모델 저장.
+            # torch.save(model.state_dict(), sorted_path) # for some overfitting
+            # 전에 학습된 loss 보다 현재 loss 가 더 낮을시 모델 저장.
             if valid_loss < best_valid_loss:
                 best_valid_loss = valid_loss
                 torch.save({
@@ -188,15 +178,34 @@ def main(TEXT, LABEL, train_loader, test_loader):
     print("\t----------성능평가----------")
     checkpoint = torch.load(sorted_path)
     model.load_state_dict(checkpoint['model_state_dict'])
-    test_loss, test_acc = test(model, test_loader, criterion) # 아
+    test_loss, test_acc = test(model, test_loader, criterion, arguments.max_len, arguments.per_soft,
+                               arguments.per_rough)
     print(f'==test_loss : {test_loss:.3f} | test_acc: {test_acc:.3f}==')
     print("\t-----------------------------")
-    while (True):
-        inference(device, args, TEXT, LABEL, model, sa_model)
+    while True:
+        inference(device, arguments.max_len, arguments.per_soft, TEXT, LABEL, model, sa_model)
         print("\n")
 
+
 if __name__ == '__main__':
+    # argparse 정의
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--max_len', type=int, default=40)  # max_len 크게 해야 오류 안 생김.
+    parser.add_argument('--batch_size', type=int, default=256)
+    parser.add_argument('--num_epochs', type=int, default=22)
+    parser.add_argument('--warming_up_epochs', type=int, default=5)
+    parser.add_argument('--lr', type=float, default=0.0002)
+    parser.add_argument('--embedding_dim', type=int, default=160)
+    parser.add_argument('--nlayers', type=int, default=2)
+    parser.add_argument('--nhead', type=int, default=2)
+    parser.add_argument('--dropout', type=float, default=0.1)
+    parser.add_argument('--train', action="store_true")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--per_soft', action="store_true")
+    group.add_argument('--per_rough', action="store_true")
+    args = parser.parse_args()
+
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     # TEXT 는 사람의 말, LABEL 은 챗봇 답변을 의미하는 Field.
-    TEXT, LABEL, train_loader, test_loader = data_preprocessing(args, device)
-    main(TEXT, LABEL, train_loader, test_loader)
+    TEXT, LABEL, train_loader, test_loader = data_preprocessing(args.batch_size, args.max_len, args.per_rough, device)
+    main(TEXT, LABEL, train_loader, test_loader, args)

@@ -4,10 +4,12 @@ import gluonnlp as nlp
 import numpy as np
 from kobert.utils import get_tokenizer
 from kobert.pytorch_kobert import get_pytorch_kobert_model
-bertmodel, vocab = get_pytorch_kobert_model()
+
+bert_model, vocab = get_pytorch_kobert_model()
 
 tokenizer = get_tokenizer()
 tok = nlp.data.BERTSPTokenizer(tokenizer, vocab, lower=False)
+
 
 class BERTDataset(Dataset):
     def __init__(self, dataset, sent_idx, label_idx, bert_tokenizer, max_len,
@@ -19,12 +21,13 @@ class BERTDataset(Dataset):
         self.labels = [np.int32(i[label_idx]) for i in dataset]
 
     def __getitem__(self, i):
-        return (self.sentences[i] + (self.labels[i], ))
+        return self.sentences[i] + (self.labels[i],)
 
     def __len__(self):
-        return (len(self.labels))
+        return len(self.labels)
 
-class infer_BERTDataset(Dataset):
+
+class inferBERTDataset(Dataset):
     def __init__(self, dataset, sent_idx, bert_tokenizer, max_len,
                  pad, pair):
         transform = nlp.data.BERTSentenceTransform(
@@ -33,25 +36,27 @@ class infer_BERTDataset(Dataset):
         self.sentences = [transform([i[sent_idx]]) for i in dataset]
 
     def __getitem__(self, i):
-        return (self.sentences[i])
+        return self.sentences[i]
 
-def get_loader(args):
+
+def get_loader(max_len: int, batch_size: int):
     dataset_train = nlp.data.TSVDataset("ratings_train.txt", field_indices=[1, 2], num_discard_samples=1)
     dataset_test = nlp.data.TSVDataset("ratings_test.txt", field_indices=[1, 2], num_discard_samples=1)
 
-    data_train = BERTDataset(dataset_train, 0, 1, tok, args.max_len, True, False)
-    data_test = BERTDataset(dataset_test, 0, 1, tok, args.max_len, True, False)
+    data_train = BERTDataset(dataset_train, 0, 1, tok, max_len, True, False)
+    data_test = BERTDataset(dataset_test, 0, 1, tok, max_len, True, False)
 
     train_dataloader = torch.utils.data.DataLoader(
-        data_train, batch_size=args.batch_size, drop_last=True, shuffle=True)
+        data_train, batch_size=batch_size, drop_last=True, shuffle=True)
     test_dataloader = torch.utils.data.DataLoader(
-        data_test, batch_size=args.batch_size, drop_last=False, shuffle=False)
+        data_test, batch_size=batch_size, drop_last=False, shuffle=False)
 
     return train_dataloader, test_dataloader
 
-def infer(args, src):
-   SRC_data = infer_BERTDataset(src, 0, tok, args.max_len, True, False)
-   return SRC_data
+
+def infer(max_len: int, src):
+    SRC_data = inferBERTDataset(src, 0, tok, max_len, True, False)
+    return SRC_data
 
 # num=0
 # print(len(data_test))

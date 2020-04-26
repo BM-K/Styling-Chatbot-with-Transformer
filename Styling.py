@@ -10,22 +10,25 @@ positive_emo = ['ㅎㅎ', '~']
 negative_emo = ['...', 'ㅠㅠ']
 asdf = []
 
+
 # mecab 을 통한 형태소 분석.
-def mecab_token_pos_flat_fn(string):
+def mecab_token_pos_flat_fn(string: str):
     tokens_ko = mecab.pos(string)
     return [str(pos[0]) + '/' + str(pos[1]) for pos in tokens_ko]
 
+
 # rough 를 위한 함수. 대명사 NP (저, 제) 를 찾아 나 or 내 로 바꿔준다.
-def exchange_NP(target, args):
+def exchange_NP(target: str):
     keyword = []
     ko_sp = mecab_token_pos_flat_fn(target)
+    _idx = -1  # 실패 시 기본 값
     for idx, word in enumerate(ko_sp):
         if word.find('NP') > 0:
             keyword.append(word.split('/'))
             _idx = idx
             break
-    if keyword == []:
-        return '', -1, False
+    if not keyword:  # keyword 가 비었을 때
+        return '', _idx, False
 
     if keyword[0][0] == '저':
         keyword[0][0] = '나'
@@ -36,13 +39,14 @@ def exchange_NP(target, args):
 
     return keyword[0][0], _idx, True
 
+
 # 단어를 soft or rough 말투로 바꾸는 과정
-def make_special_word(target, args, search_ec):
+def make_special_word(target: str, per_rough: bool, search_ec: bool):
     # mecab 를 통해 문장을 구분 (example output : ['오늘/MAG', '날씨/NNG', '좋/VA', '다/EF', './SF'])
     ko_sp = mecab_token_pos_flat_fn(target)
 
     keyword = []
-
+    _idx = -1  # 실패 시 기본 값
     # word 에 종결어미 'EF' or 'EC' 가 포함 되어 있을 경우 index 와 keyword 추출.
     for idx, word in enumerate(ko_sp):
         if word.find('EF') > 0:
@@ -52,18 +56,18 @@ def make_special_word(target, args, search_ec):
         if search_ec:
             if ko_sp[-2].find('EC') > 0:
                 keyword.append(ko_sp[-2].split('/'))
-                _idx = len(ko_sp) -1
+                _idx = len(ko_sp) - 1
                 break
             else:
                 continue
 
     # 'EF'가 없을 시 return.
-    if keyword == []:
-        return '', -1
+    if not keyword:
+        return '', _idx
     else:
-        keyword = keyword[0]
+        keyword = keyword[0]  # TODO: 이래도 되는지 확인
 
-    if args.per_rough:
+    if per_rough:
         return keyword[0], _idx
 
     # hgtk 를 사용하여 keyword 를 쪼갬. (ex output : 하ᴥ세요)
@@ -74,17 +78,18 @@ def make_special_word(target, args, search_ec):
         total_word += word
 
     # 'EF' 에 종성 'ㅇ' 를 붙여 Styling
-    total_word = replaceRight(total_word, "ᴥ", "ㅇᴥ", 1)
+    total_word = replace_right(total_word, "ᴥ", "ㅇᴥ", 1)
 
     # 다 이어 붙임. ' 하세요 -> 하세용 ' 으로 변환.
     h_combine = hgtk.text.compose(total_word)
 
     return h_combine, _idx
 
+
 # special token 을 만드는 함수
-def make_special_token(args):
+def make_special_token(per_rough: bool):
     # 감정을 나타내기 위한 special token
-    target_special_voca=[]
+    target_special_voca = []
 
     banmal_dict = get_rough_dic()
 
@@ -92,8 +97,8 @@ def make_special_token(args):
     with open('chatbot_0325_ALLLABEL_train.txt', 'r', encoding='utf-8') as f:
         rdr = csv.reader(f, delimiter='\t')
         for idx, line in enumerate(rdr):
-            target = line[2] # chatbot answer
-            exchange_word, _ = make_special_word(target, args, False)
+            target = line[2]  # chatbot answer
+            exchange_word, _ = make_special_word(target, per_rough, False)
             target_special_voca.append(str(exchange_word))
     target_special_voca = list(set(target_special_voca))
 
@@ -102,7 +107,7 @@ def make_special_token(args):
         try:
             banmal_special_voca.append(banmal_dict[target_special_voca[i]])
         except KeyError:
-            if args.per_rough:
+            if per_rough:
                 print("not include banmal dictionary")
             pass
 
@@ -116,25 +121,23 @@ def make_special_token(args):
     # '<posi> : positive, <nega> : negative' 를 의미
     return ['<posi>', '<nega>'], target_special_voca
 
+
 # python string 함수 replace 를 오른쪽부터 시작하는 함수.
-def replaceRight(original, old, new, count_right):
-    repeat = 0
+def replace_right(original: str, old: str, new: str, count_right: int):
     text = original
 
     count_find = original.count(old)
-    if count_right > count_find:  # 바꿀 횟수가 문자열에 포함된 old보다 많다면
-        repeat = count_find  # 문자열에 포함된 old의 모든 개수(count_find)만큼 교체한다
-    else:
-        repeat = count_right  # 아니라면 입력받은 개수(count)만큼 교체한다
-
+    # 바꿀 횟수가 문자열에 포함된 old보다 많다면 문자열에 포함된 old의 모든 개수(count_find)만큼 교체한다 아니라면 입력받은 개수(count)만큼 교체한다
+    repeat = count_find if count_right > count_find else count_right
     for _ in range(repeat):
         find_index = text.rfind(old)  # 오른쪽부터 index를 찾기위해 rfind 사용
         text = text[:find_index] + new + text[find_index + 1:]
 
     return text
 
+
 # transformer 에 input 과 output 으로 들어갈 tensor Styling 변환.
-def styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, args, TEXT, LABEL):
+def styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, max_len: int, per_soft: bool, per_rough: bool,  TEXT, LABEL):
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     pad_tensor = torch.tensor([LABEL.vocab.stoi['<pad>']]).type(dtype=torch.int32).to(device)
@@ -143,10 +146,10 @@ def styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, args, TEXT
     batch_sentiment_list = []
 
     # 부드러운 성격
-    if args.per_soft:
+    if per_soft:
         # encoder input : 나는 너를 좋아해 <posi> <pad> <pad> ... - 형식으로 바꿔줌.
         for i in range(len(temp_enc)):
-            for j in range(args.max_len):
+            for j in range(max_len):
                 if temp_enc[i][j] == 1 and enc_label[i] == 0:
                     temp_enc[i][j] = TEXT.vocab.stoi["<nega>"]
                     batch_sentiment_list.append(0)
@@ -163,10 +166,10 @@ def styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, args, TEXT
 
         temp_dec = dec_outputs.data.cpu().numpy()
 
-        dec_outputs_sentiment_list = [] # decoder 에 들어가 감정표현 저장.
+        dec_outputs_sentiment_list = []  # decoder 에 들어가 감정표현 저장.
 
         # decoder outputs : 저도 좋아용 ㅎㅎ <eos> <pad> <pad> ... - 형식으로 바꿔줌.
-        for i in range(len(temp_dec)): # i = batch size
+        for i in range(len(temp_dec)):  # i = batch size
             temp_sentence = ''
             sa_ = batch_sentiment_list[i]
             if sa_ == 0:
@@ -176,17 +179,17 @@ def styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, args, TEXT
             dec_outputs_sentiment_list.append(sa_)
 
             for ix, token_i in enumerate(temp_dec[i]):
-                if LABEL.vocab.itos[token_i] == '<sos>' or LABEL.vocab.itos[token_i] == '<eos>' or LABEL.vocab.itos[token_i] == '<pad>':
+                if LABEL.vocab.itos[token_i] in ['<sos>', '<eos>', '<pad>']:
                     continue
                 temp_sentence = temp_sentence + LABEL.vocab.itos[token_i]
             temp_sentence = temp_sentence + '.'  # 마침표에 유무에 따라 형태소 분석이 달라짐.
-            exchange_word, idx = make_special_word(temp_sentence, args, True)
+            exchange_word, idx = make_special_word(temp_sentence, per_rough, True)
 
             if exchange_word == '':
                 for j in range(len(temp_dec[i])):
                     if temp_dec[i][j] == LABEL.vocab.stoi['<eos>']:
                         temp_dec[i][j] = LABEL.vocab.stoi[sa_]
-                        temp_dec[i][j+1] = LABEL.vocab.stoi['<eos>']
+                        temp_dec[i][j + 1] = LABEL.vocab.stoi['<eos>']
                         break
                 continue
 
@@ -207,34 +210,34 @@ def styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, args, TEXT
         for i in range(len(temp_dec_input)):
             temp_sentence = ''
             for ix, token_i in enumerate(temp_dec_input[i]):
-                if LABEL.vocab.itos[token_i] == '<sos>' or LABEL.vocab.itos[token_i] == '<eos>' or LABEL.vocab.itos[token_i] == '<pad>':
+                if LABEL.vocab.itos[token_i] in ['<sos>', '<eos>', '<pad>']:
                     continue
                 temp_sentence = temp_sentence + LABEL.vocab.itos[token_i]
             temp_sentence = temp_sentence + '.'  # 마침표에 유무에 따라 형태소 분석이 달라짐.
-            exchange_word, idx = make_special_word(temp_sentence, args, True)
+            exchange_word, idx = make_special_word(temp_sentence, per_rough, True)
 
             if exchange_word == '':
                 for j in range(len(temp_dec_input[i])):
                     if temp_dec_input[i][j] == LABEL.vocab.stoi['<eos>']:
                         temp_dec_input[i][j] = LABEL.vocab.stoi[dec_outputs_sentiment_list[i]]
-                        temp_dec_input[i][j+1] = LABEL.vocab.stoi['<eos>']
+                        temp_dec_input[i][j + 1] = LABEL.vocab.stoi['<eos>']
                         break
                 continue
 
             for j in range(len(temp_dec_input[i])):
                 if LABEL.vocab.itos[temp_dec_input[i][j]] == '<eos>':
-                    temp_dec_input[i][j-1] = LABEL.vocab.stoi[exchange_word]
+                    temp_dec_input[i][j - 1] = LABEL.vocab.stoi[exchange_word]
                     temp_dec_input[i][j] = LABEL.vocab.stoi[dec_outputs_sentiment_list[i]]
-                    temp_dec_input[i][j+1] = LABEL.vocab.stoi['<eos>']
+                    temp_dec_input[i][j + 1] = LABEL.vocab.stoi['<eos>']
                     break
-                elif temp_dec_input[i][j] != LABEL.vocab.stoi['<eos>'] and j+1 == len(temp_dec_input[i]):
+                elif temp_dec_input[i][j] != LABEL.vocab.stoi['<eos>'] and j + 1 == len(temp_dec_input[i]):
                     print("\t-ERROR- No <EOS> token")
                     exit()
 
         dec_input = torch.tensor(temp_dec_input, dtype=torch.int32).to(device)
 
     # 거친 성격
-    elif args.per_rough:
+    elif per_rough:
         banmal_dic = get_rough_dic()
 
         for i in range(len(dec_outputs)):
@@ -249,9 +252,9 @@ def styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, args, TEXT
                 if LABEL.vocab.itos[token_i] == '<eos>':
                     break
                 temp_sentence = temp_sentence + LABEL.vocab.itos[token_i]
-            temp_sentence = temp_sentence+'.' # 마침표에 유무에 따라 형태소 분석이 달라짐.
-            exchange_word, idx = make_special_word(temp_sentence, args, True)
-            exchange_NP_word, NP_idx, exist = exchange_NP(temp_sentence, args)
+            temp_sentence = temp_sentence + '.'  # 마침표에 유무에 따라 형태소 분석이 달라짐.
+            exchange_word, idx = make_special_word(temp_sentence, per_rough, True)
+            exchange_NP_word, NP_idx, exist = exchange_NP(temp_sentence)
 
             if exist:
                 temp_dec[i][NP_idx] = LABEL.vocab.stoi[exchange_NP_word]
@@ -266,8 +269,8 @@ def styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, args, TEXT
                 pass
 
             temp_dec[i][idx] = LABEL.vocab.stoi[exchange_word]
-            temp_dec[i][idx+1] = LABEL.vocab.stoi['<eos>']
-            for k in range(idx+2, args.max_len):
+            temp_dec[i][idx + 1] = LABEL.vocab.stoi['<eos>']
+            for k in range(idx + 2, max_len):
                 temp_dec[i][k] = LABEL.vocab.stoi['<pad>']
 
             # for j in range(len(temp_dec[i])):
@@ -283,14 +286,14 @@ def styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, args, TEXT
         for i in range(len(temp_dec_input)):
             temp_sentence = ''
             for ix, token_i in enumerate(temp_dec_input[i]):
-                if ix == 0 :
-                    continue # because of token <sos>
+                if ix == 0:
+                    continue  # because of token <sos>
                 if LABEL.vocab.itos[token_i] == '<eos>':
                     break
                 temp_sentence = temp_sentence + LABEL.vocab.itos[token_i]
             temp_sentence = temp_sentence + '.'  # 마침표에 유무에 따라 형태소 분석이 달라짐.
-            exchange_word, idx = make_special_word(temp_sentence, args, True)
-            exchange_NP_word, NP_idx, exist = exchange_NP(temp_sentence, args)
+            exchange_word, idx = make_special_word(temp_sentence, per_rough, True)
+            exchange_NP_word, NP_idx, exist = exchange_NP(temp_sentence)
             idx = idx + 1  # because of token <sos>
             NP_idx = NP_idx + 1
 
@@ -309,7 +312,7 @@ def styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, args, TEXT
             temp_dec_input[i][idx] = LABEL.vocab.stoi[exchange_word]
             temp_dec_input[i][idx + 1] = LABEL.vocab.stoi['<eos>']
 
-            for k in range(idx+2, args.max_len):
+            for k in range(idx + 2, max_len):
                 temp_dec_input[i][k] = LABEL.vocab.stoi['<pad>']
 
             # for j in range(len(temp_dec_input[i])):
@@ -321,6 +324,7 @@ def styling(enc_input, dec_input, dec_output, dec_outputs, enc_label, args, TEXT
         dec_input = torch.tensor(temp_dec_input, dtype=torch.int32).to(device)
 
     return enc_input, dec_input, dec_outputs
+
 
 # 반말로 바꾸기위한 딕셔너리
 def get_rough_dic():

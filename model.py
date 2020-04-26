@@ -1,17 +1,19 @@
 import torch
 import torch.nn as nn
 import math
+
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
+
 class Transformer(nn.Module):
-    def __init__(self, args, SRC_vocab, TRG_vocab):
+    def __init__(self, embedding_dim: int, nhead: int, nlayers: int, dropout: float, SRC_vocab, TRG_vocab):
         super(Transformer, self).__init__()
-        self.d_model = args.embedding_dim
-        self.n_head = args.nhead
-        self.num_encoder_layers = args.nlayers
-        self.num_decoder_layers = args.nlayers
-        self.dim_feedforward = args.embedding_dim
-        self.dropout = args.dropout
+        self.d_model = embedding_dim
+        self.n_head = nhead
+        self.num_encoder_layers = nlayers
+        self.num_decoder_layers = nlayers
+        self.dim_feedforward = embedding_dim
+        self.dropout = dropout
 
         self.SRC_vo = SRC_vocab
         self.TRG_vo = TRG_vocab
@@ -30,7 +32,7 @@ class Transformer(nn.Module):
         self.proj_vocab_layer = nn.Linear(
             in_features=self.dim_feedforward, out_features=len(self.TRG_vo.vocab))
 
-        #self.apply(self._initailze)
+        # self.apply(self._initailze)
 
     def forward(self, en_input, de_input):
         x_en_embed = self.src_embedding(en_input.long()) * math.sqrt(self.d_model)
@@ -60,8 +62,9 @@ class Transformer(nn.Module):
         return logits
 
     def _initailze(self, layer):
-        if isinstance(layer, (nn.Linear)):
+        if isinstance(layer, nn.Linear):
             nn.init.kaiming_uniform_(layer.weight)
+
 
 class PositionalEncoding(nn.Module):
 
@@ -81,11 +84,12 @@ class PositionalEncoding(nn.Module):
         x = x + self.pe[:x.size(0), :]
         return self.dropout(x)
 
+
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-class GradualWarmupScheduler(_LRScheduler):
 
+class GradualWarmupScheduler(_LRScheduler):
     """ Gradually warm-up(increasing) learning rate in optimizer.
     Proposed in 'Accurate, Large Minibatch SGD: Training ImageNet in 1 Hour'.
     Args:
@@ -100,6 +104,7 @@ class GradualWarmupScheduler(_LRScheduler):
         if self.multiplier <= 1.:
             raise ValueError('multiplier should be greater than 1.')
         self.total_epoch = total_epoch
+        self.last_epoch = 1  # 기본 값
         self.after_scheduler = after_scheduler
         self.finished = False
         super().__init__(optimizer)
@@ -113,14 +118,17 @@ class GradualWarmupScheduler(_LRScheduler):
                 return self.after_scheduler.get_lr()
             return [base_lr * self.multiplier for base_lr in self.base_lrs]
 
-        return [base_lr * ((self.multiplier - 1.) * self.last_epoch / self.total_epoch + 1.) for base_lr in self.base_lrs]
+        return [base_lr * ((self.multiplier - 1.) * self.last_epoch / self.total_epoch + 1.) for base_lr in
+                self.base_lrs]
 
     def step_ReduceLROnPlateau(self, metrics, epoch=None):
         if epoch is None:
             epoch = self.last_epoch + 1
-        self.last_epoch = epoch if epoch != 0 else 1  # ReduceLROnPlateau is called at the end of epoch, whereas others are called at beginning
+        #  ReduceLROnPlateau is called at the end of epoch, whereas others are called at beginning
+        self.last_epoch = epoch if epoch != 0 else 1
         if self.last_epoch <= self.total_epoch:
-            warmup_lr = [base_lr * ((self.multiplier - 1.) * self.last_epoch / self.total_epoch + 1.) for base_lr in self.base_lrs]
+            warmup_lr = [base_lr * ((self.multiplier - 1.) * self.last_epoch / self.total_epoch + 1.) for base_lr in
+                         self.base_lrs]
             for param_group, lr in zip(self.optimizer.param_groups, warmup_lr):
                 param_group['lr'] = lr
         else:
