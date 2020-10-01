@@ -28,6 +28,3 @@ Task 특성상 Human Evaluation을 통해 성능 평가를 진행하였다. 질�
 <br>[2] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N.Gomez, Lukasz Kaiser and Illia Polosukhin, “Attention Is All You Need”, In proceedings of Neural Information Processing System, pp. 5998-6008, 2017 
 <br>[3] Junjie Tin*, Zixun Chen, kELAI Zhou and Chonhyuan Yu, “A Deep Learning Based Chatbot System for Campus Psychological Therapy”, arXiv preprint arXiv:1910.06707, pp. 0-31, 2019 
 <br>[4] Jacob Devlin, Ming-Wei Chang, Kenton Lee and Kristina Toutanova, “BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding”, North American Chapter of the Association for Computational Linguistics, pp. 4171-4186, 2019 
-<br>[5] D.gov Trend&Future 인공지능 기반 챗봇 서비스의 국내외 동향분석 및 발전 전망
-
-
