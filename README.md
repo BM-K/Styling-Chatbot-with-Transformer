@@ -2,7 +2,7 @@
 Language Style과 감정 분석에 따른 챗봇 답변 변화 모델 : 
 사용자의 입력에 따라 챗봇이 답변하는 단순한 형태의 대화형 챗봇이 많이 등장하고 있다. 이러한 챗봇은 학습된 데이터에 따라 하나의 답변 Style을 갖기에 기계가 답변한다는 느낌이 강하다. 이에 본 논문에서는 챗봇이 실제 사람과 같이 답변하도록 하기위해 챗봇에게 Language Style을 ‘부드러움’ 과 ‘무뚝뚝함’ 두 가지로 구분하여 학습시킨다. 또한 사용자 입력에 감정 분석(Sentiment Analysis)을 통하여 챗봇 출력 시퀀스에 이모티콘을 추가하여 학습한다. Human Evaluation을 통해 챗봇의 성능을 평가하였다.
 
-# Requirement
+# Environment
 - Ubuntu 18.04.1 LTS
 - Force RTX 2080 Ti
 - Python 3.6.8
