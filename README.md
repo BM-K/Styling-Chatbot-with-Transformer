@@ -1,6 +1,5 @@
 # Subject
-Language Style과 감정 분석에 따른 챗봇 답변 변화 모델 : 
-사용자의 입력에 따라 챗봇이 답변하는 단순한 형태의 대화형 챗봇이 많이 등장하고 있다. 이러한 챗봇은 학습된 데이터에 따라 하나의 답변 Style을 갖기에 기계가 답변한다는 느낌이 강하다. 이에 본 논문에서는 챗봇이 실제 사람과 같이 답변하도록 하기위해 챗봇에게 Language Style을 ‘부드러움’ 과 ‘무뚝뚝함’ 두 가지로 구분하여 학습시킨다. 또한 사용자 입력에 감정 분석(Sentiment Analysis)을 통하여 챗봇 출력 시퀀스에 이모티콘을 추가하여 학습한다. Human Evaluation을 통해 챗봇의 성능을 평가하였다.
+Language Style과 감정에 따른 챗봇 답변 변화 모델 
 
 # Environment
 - Ubuntu 18.04.1 LTS
@@ -21,7 +20,7 @@ Human Evaluation을 통해 성능 평가를 진행하였다. 질문 총 20개를
 
 # Conclusion
 본 논문에서는 사용자의 감정을 분석하고 출력의 종결 어미나 보조용언과 연결어미가 합쳐져 표현된 형태소를 찾아 Language Style을 변경시킴으로써 챗봇이 실제 사 람처럼 답변하게끔 하는 모델을 제시하였다. Human Evaluation을 통해 5개의 옵션을 두고 성능을 평가하였 다. 
-<br> 본 연구를 통해 기존보다 사람에 가까운 답변을 하는 챗봇을 만들어 사용자 경험 측면에서의 만족도를 높이었 다. Language Style을 구성하는 것은 말투만이 아니기에 향후 추가 학습을 통해 어휘, 묘사 등의 변화를 주어서 챗봇의 성능을 개선하고자 한다.
+<br> 본 연구를 통해 기존보다 사람에 가까운 답변을 하는 챗봇을 만들어 사용자 경험 측면에서의 만족도를 높이었다. Language Style을 구성하는 것은 말투만이 아니기에 향후 추가 학습을 통해 어휘, 묘사 등의 변화를 주어서 챗봇의 성능을 개선하고자 한다.
 
 # References
 [1] Ilya Sutskever, Oriol Vinyals and Quoc V.Le, “Sequence to Sequence Learning with Neural Networks”, In proceedings of Neural Information Processing System, pp. 3104-3112, 2014 
